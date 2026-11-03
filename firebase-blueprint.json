@@ -1,0 +1,72 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Sistem kullanıcısı ve profil bilgileri",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "maxLength": 128 },
+        "username": { "type": "string", "maxLength": 64 },
+        "displayName": { "type": "string", "maxLength": 100 },
+        "email": { "type": "string", "maxLength": 128 },
+        "photoURL": { "type": "string", "maxLength": 512 },
+        "avatarColor": { "type": "string", "maxLength": 32 },
+        "status": { "type": "string", "enum": ["online", "offline", "away"] },
+        "bio": { "type": "string", "maxLength": 256 },
+        "createdAt": { "type": "string", "maxLength": 64 },
+        "lastSeen": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["uid", "username", "displayName"]
+    },
+    "Channel": {
+      "title": "Channel",
+      "description": "Sohbet odası veya özel mesajlaşma kanalı",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 80 },
+        "description": { "type": "string", "maxLength": 200 },
+        "type": { "type": "string", "enum": ["public", "direct"] },
+        "creatorId": { "type": "string", "maxLength": 128 },
+        "memberIds": { "type": "array" },
+        "lastMessage": { "type": "string", "maxLength": 500 },
+        "lastMessageAt": { "type": "string", "maxLength": 64 },
+        "createdAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["id", "name", "type"]
+    },
+    "Message": {
+      "title": "Message",
+      "description": "Kanal içi anlık mesaj",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "channelId": { "type": "string", "maxLength": 128 },
+        "senderId": { "type": "string", "maxLength": 128 },
+        "senderName": { "type": "string", "maxLength": 100 },
+        "senderAvatar": { "type": "string", "maxLength": 512 },
+        "senderColor": { "type": "string", "maxLength": 32 },
+        "text": { "type": "string", "maxLength": 2000 },
+        "type": { "type": "string", "enum": ["text", "code", "image", "system"] },
+        "codeLanguage": { "type": "string", "maxLength": 32 },
+        "reactions": { "type": "object" },
+        "createdAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["id", "channelId", "senderId", "senderName", "text"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "entities/User" },
+      "description": "Kullanıcı profilleri"
+    },
+    "/channels/{channelId}": {
+      "schema": { "$ref": "entities/Channel" },
+      "description": "Herkese açık veya direkt mesaj odaları"
+    },
+    "/channels/{channelId}/messages/{messageId}": {
+      "schema": { "$ref": "entities/Message" },
+      "description": "Kanal içerisindeki anlık mesaj kayıtları"
+    }
+  }
+}

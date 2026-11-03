@@ -1,0 +1,95 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-\\.:]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // Connectivity test document
+    match /test/{docId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // Users Collection
+    function isValidUser(data) {
+      return data.uid is string && data.uid == request.auth.uid &&
+             data.username is string && data.username.size() >= 2 && data.username.size() <= 64 &&
+             data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 100 &&
+             (!('email' in data) || (data.email is string && data.email.size() <= 128)) &&
+             (!('bio' in data) || (data.bio is string && data.bio.size() <= 256)) &&
+             (!('photoURL' in data) || (data.photoURL is string && data.photoURL.size() <= 512)) &&
+             (!('avatarColor' in data) || (data.avatarColor is string && data.avatarColor.size() <= 32)) &&
+             (!('status' in data) || (data.status in ['online', 'offline', 'away']));
+    }
+
+    match /users/{userId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && request.auth.uid == userId && isValidId(userId) && isValidUser(incoming());
+      allow update: if isSignedIn() && request.auth.uid == userId && isValidUser(incoming());
+      allow delete: if false;
+    }
+
+    // Channels Collection
+    function isValidChannel(data) {
+      return data.id is string && data.id.size() <= 128 &&
+             data.name is string && data.name.size() >= 1 && data.name.size() <= 80 &&
+             data.type in ['public', 'direct'] &&
+             (!('description' in data) || (data.description is string && data.description.size() <= 200)) &&
+             (!('creatorId' in data) || (data.creatorId is string && data.creatorId.size() <= 128)) &&
+             (!('lastMessage' in data) || (data.lastMessage is string && data.lastMessage.size() <= 500)) &&
+             (!('memberIds' in data) || (data.memberIds is list && data.memberIds.size() <= 100));
+    }
+
+    match /channels/{channelId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(channelId) && isValidChannel(incoming());
+      allow update: if isSignedIn() && isValidChannel(incoming());
+      allow delete: if isSignedIn() && resource.data.creatorId == request.auth.uid;
+
+      // Messages Sub-collection
+      function isValidMessage(data) {
+        return data.id is string && data.id.size() <= 128 &&
+               data.channelId is string && data.channelId == channelId &&
+               data.senderId is string && data.senderId == request.auth.uid &&
+               data.senderName is string && data.senderName.size() >= 1 && data.senderName.size() <= 100 &&
+               data.text is string && data.text.size() > 0 && data.text.size() <= 2000 &&
+               (!('type' in data) || (data.type in ['text', 'code', 'image', 'system'])) &&
+               (!('codeLanguage' in data) || (data.codeLanguage is string && data.codeLanguage.size() <= 32)) &&
+               (!('senderAvatar' in data) || (data.senderAvatar is string && data.senderAvatar.size() <= 512)) &&
+               (!('senderColor' in data) || (data.senderColor is string && data.senderColor.size() <= 32));
+      }
+
+      match /messages/{messageId} {
+        allow read: if isSignedIn();
+        allow create: if isSignedIn() && isValidId(messageId) && isValidMessage(incoming());
+        allow update: if isSignedIn() && (
+          // Allow sender to edit message text
+          (resource.data.senderId == request.auth.uid && incoming().senderId == resource.data.senderId && incoming().text is string && incoming().text.size() <= 2000) ||
+          // Or allow any authenticated user to toggle reactions
+          (incoming().diff(existing()).affectedKeys().hasOnly(['reactions']))
+        );
+        allow delete: if isSignedIn() && resource.data.senderId == request.auth.uid;
+      }
+    }
+  }
+}
