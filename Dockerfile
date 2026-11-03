@@ -25,7 +25,7 @@ COPY nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=builder /app/dist /usr/share/nginx/html
 
 # Expose container port
-EXPOSE 3000
+EXPOSE 3030
 
 # Start Nginx
 CMD ["nginx", "-g", "daemon off;"]

@@ -29,7 +29,7 @@ Herhangi bir klonlama yapmadan, yalnızca `docker-compose.yml` dosyasını kulla
 ```bash
 docker compose up -d --build
 ```
-Docker arka planda `https://github.com/Eruaskina/FirebaseChat.git#main` reposunu klonlar, `Dockerfile` ile Nginx tabanlı üretim paketini derler ve 3000 portunda yayına alır.
+Docker arka planda `https://github.com/Eruaskina/FirebaseChat.git#main` reposunu klonlar, `Dockerfile` ile Nginx tabanlı üretim paketini derler ve 3030 portunda yayına alır.
 
 ---
 
