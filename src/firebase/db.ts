@@ -10,6 +10,21 @@ import {
 import { auth, db, handleFirestoreError, OperationType } from './config';
 import { Channel, ChatMessage, UserProfile } from '../types/chat';
 
+// Helper to remove any undefined fields before sending to Firestore
+export function sanitizePayload<T extends Record<string, any>>(obj: T): T {
+  const clean: Record<string, any> = {};
+  for (const [key, val] of Object.entries(obj)) {
+    if (val !== undefined) {
+      if (val !== null && typeof val === 'object' && !Array.isArray(val) && !(val instanceof Date)) {
+        clean[key] = sanitizePayload(val);
+      } else {
+        clean[key] = val;
+      }
+    }
+  }
+  return clean as T;
+}
+
 // Default initial channels
 const DEFAULT_CHANNELS: Channel[] = [
   {
@@ -128,7 +143,8 @@ export function subscribeToChannels(callback: (channels: Channel[]) => void): ()
 export async function createChannel(channel: Channel): Promise<void> {
   const path = `channels/${channel.id}`;
   try {
-    await setDoc(doc(db, 'channels', channel.id), channel);
+    const cleanData = sanitizePayload(channel);
+    await setDoc(doc(db, 'channels', channel.id), cleanData);
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, path);
   }
@@ -167,7 +183,8 @@ export function subscribeToMessages(channelId: string, callback: (messages: Chat
 export async function sendMessage(channelId: string, msg: ChatMessage): Promise<void> {
   const path = `channels/${channelId}/messages/${msg.id}`;
   try {
-    await setDoc(doc(db, 'channels', channelId, 'messages', msg.id), msg);
+    const cleanMsg = sanitizePayload(msg);
+    await setDoc(doc(db, 'channels', channelId, 'messages', msg.id), cleanMsg);
     // Also update channel lastMessage
     const preview = msg.type === 'code' ? `[Kod] ${msg.codeLanguage || 'snippet'}` : msg.text;
     await updateDoc(doc(db, 'channels', channelId), {
@@ -256,7 +273,8 @@ export function subscribeToUsers(callback: (users: UserProfile[]) => void): () =
 export async function saveUserProfile(profile: UserProfile): Promise<void> {
   const path = `users/${profile.uid}`;
   try {
-    await setDoc(doc(db, 'users', profile.uid), profile, { merge: true });
+    const cleanProfile = sanitizePayload(profile);
+    await setDoc(doc(db, 'users', profile.uid), cleanProfile, { merge: true });
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, path);
   }
@@ -282,7 +300,8 @@ export async function getOrCreateDirectChannel(currentUser: UserProfile, targetU
 
   const path = `channels/${channelId}`;
   try {
-    await setDoc(doc(db, 'channels', channelId), channel, { merge: true });
+    const cleanChannel = sanitizePayload(channel);
+    await setDoc(doc(db, 'channels', channelId), cleanChannel, { merge: true });
     return channel;
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, path);

@@ -74,10 +74,13 @@ export const ChatArea: React.FC<ChatAreaProps> = ({ channel, onOpenCodeModal }) 
       senderColor: profile.avatarColor || '#FFA000',
       text,
       type,
-      codeLanguage: codeLanguage || undefined,
       reactions: {},
       createdAt: new Date().toISOString()
     };
+
+    if (codeLanguage) {
+      newMsg.codeLanguage = codeLanguage;
+    }
 
     await sendMessage(channel.id, newMsg);
   };

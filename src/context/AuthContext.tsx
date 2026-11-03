@@ -86,14 +86,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               uid: user.uid,
               username: rawUsername,
               displayName: user.displayName || rawUsername,
-              email: user.email || undefined,
-              photoURL: user.photoURL || undefined,
               avatarColor: getRandomColor(),
               status: 'online',
               bio: 'Firebase Pulse Chat kullanıcısı',
               createdAt: new Date().toISOString(),
               lastSeen: new Date().toISOString()
             };
+            if (user.email) newProfile.email = user.email;
+            if (user.photoURL) newProfile.photoURL = user.photoURL;
+
             await saveUserProfile(newProfile);
             setProfile(newProfile);
           }
@@ -103,12 +104,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             uid: user.uid,
             username: user.email?.split('@')[0] || 'kullanici',
             displayName: user.displayName || user.email?.split('@')[0] || 'Kullanıcı',
-            email: user.email || undefined,
             avatarColor: '#FFA000',
             status: 'online',
             createdAt: new Date().toISOString(),
             lastSeen: new Date().toISOString()
           };
+          if (user.email) fallbackProfile.email = user.email;
           setProfile(fallbackProfile);
         }
       } else {
