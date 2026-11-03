@@ -20,6 +20,8 @@ export interface Channel {
   memberIds?: string[];
   lastMessage?: string;
   lastMessageAt?: string;
+  lastSenderId?: string;
+  lastSenderName?: string;
   createdAt: string;
 }
 

@@ -57,6 +57,9 @@ service cloud.firestore {
              (!('description' in data) || (data.description is string && data.description.size() <= 200)) &&
              (!('creatorId' in data) || (data.creatorId is string && data.creatorId.size() <= 128)) &&
              (!('lastMessage' in data) || (data.lastMessage is string && data.lastMessage.size() <= 500)) &&
+             (!('lastMessageAt' in data) || (data.lastMessageAt is string && data.lastMessageAt.size() <= 64)) &&
+             (!('lastSenderId' in data) || (data.lastSenderId is string && data.lastSenderId.size() <= 128)) &&
+             (!('lastSenderName' in data) || (data.lastSenderName is string && data.lastSenderName.size() <= 100)) &&
              (!('memberIds' in data) || (data.memberIds is list && data.memberIds.size() <= 100));
     }
 

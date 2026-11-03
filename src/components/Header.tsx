@@ -3,7 +3,8 @@ import { FirebaseLogo } from './FirebaseLogo';
 import { useAuth } from '../context/AuthContext';
 import { FIRESTORE_DATABASE_ID } from '../firebase/config';
 import { isSoundEnabled, toggleSound } from '../firebase/sound';
-import { Volume2, VolumeX, LogOut, User as UserIcon, Menu, X, Database, Radio } from 'lucide-react';
+import { Volume2, VolumeX, LogOut, User as UserIcon, Menu, X, Database, Radio, Bell, BellRing } from 'lucide-react';
+import { getNotificationPermission, requestNotificationPermission } from '../firebase/notifications';
 
 interface HeaderProps {
   onToggleSidebar?: () => void;
@@ -19,10 +20,16 @@ export const Header: React.FC<HeaderProps> = ({
   const { profile, logout } = useAuth();
   const [soundOn, setSoundOn] = useState(isSoundEnabled());
   const [showDbInfo, setShowDbInfo] = useState(false);
+  const [notifPerm, setNotifPerm] = useState<NotificationPermission>(getNotificationPermission());
 
   const handleSoundToggle = () => {
     const next = toggleSound();
     setSoundOn(next);
+  };
+
+  const handleToggleNotification = async () => {
+    const res = await requestNotificationPermission();
+    setNotifPerm(res);
   };
 
   return (
@@ -90,8 +97,25 @@ export const Header: React.FC<HeaderProps> = ({
         )}
       </div>
 
-      {/* Right: Sound toggle, Profile & Logout */}
-      <div className="flex items-center gap-2 sm:gap-3">
+      {/* Right: Notification toggle, Sound toggle, Profile & Logout */}
+      <div className="flex items-center gap-2 sm:gap-2.5">
+        {/* Desktop Notification Toggle */}
+        <button
+          onClick={handleToggleNotification}
+          title={
+            notifPerm === 'granted'
+              ? 'Masaüstü Bildirimleri Aktif'
+              : 'Masaüstü Bildirimlerini Etkinleştir'
+          }
+          className={`p-2 rounded-lg border transition-colors ${
+            notifPerm === 'granted'
+              ? 'bg-[#24282C] border-[#3A3F45] text-amber-400 hover:bg-[#2D3135]'
+              : 'bg-[#181B1E] border-[#2A2D30] text-gray-500 hover:text-amber-400'
+          }`}
+        >
+          {notifPerm === 'granted' ? <BellRing size={18} /> : <Bell size={18} />}
+        </button>
+
         {/* Sound toggle */}
         <button
           onClick={handleSoundToggle}

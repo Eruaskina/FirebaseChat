@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Channel, ChatMessage } from '../types/chat';
+import { Channel, ChatMessage, UserProfile } from '../types/chat';
 import { useAuth } from '../context/AuthContext';
 import { MessageItem } from './MessageItem';
 import { MessageInput } from './MessageInput';
@@ -20,12 +20,15 @@ import {
   Info
 } from 'lucide-react';
 
+import { getDirectChatPartner } from '../utils/chatHelpers';
+
 interface ChatAreaProps {
   channel: Channel;
   onOpenCodeModal: () => void;
+  onlineUsers?: UserProfile[];
 }
 
-export const ChatArea: React.FC<ChatAreaProps> = ({ channel, onOpenCodeModal }) => {
+export const ChatArea: React.FC<ChatAreaProps> = ({ channel, onOpenCodeModal, onlineUsers = [] }) => {
   const { profile } = useAuth();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [searchFilter, setSearchFilter] = useState('');
@@ -99,24 +102,43 @@ export const ChatArea: React.FC<ChatAreaProps> = ({ channel, onOpenCodeModal }) 
   );
 
   const isDirect = channel.type === 'direct';
+  const partner = isDirect ? getDirectChatPartner(channel, profile?.uid, onlineUsers) : null;
+  const headerTitle = partner ? partner.displayName : channel.name;
+  const headerSubtitle = partner
+    ? `@${partner.username} • ${partner.status === 'online' ? 'Çevrim İçi' : 'Çevrim Dışı'}`
+    : channel.description;
 
   return (
     <div className="flex-1 flex flex-col h-full bg-[#181B1E] overflow-hidden">
       {/* Channel Header */}
       <div className="h-14 bg-[#1E2124] border-b border-[#2D3135] px-4 flex items-center justify-between shrink-0 shadow-xs z-10">
         <div className="flex items-center gap-2.5 min-w-0">
-          <div className="p-1.5 rounded-lg bg-[#272B2F] border border-[#3A3F45] text-amber-400">
+          <div
+            className="p-1.5 rounded-lg border text-amber-400 shrink-0"
+            style={{
+              backgroundColor: isDirect && partner?.avatarColor ? `${partner.avatarColor}20` : '#272B2F',
+              borderColor: isDirect && partner?.avatarColor ? `${partner.avatarColor}50` : '#3A3F45'
+            }}
+          >
             {isDirect ? <MessageSquare size={16} /> : <Hash size={16} />}
           </div>
           <div className="truncate">
             <h2 className="text-sm font-bold text-gray-100 truncate flex items-center gap-2">
-              {channel.name}
+              <span>{headerTitle}</span>
+              {partner && (
+                <span
+                  className={`w-2 h-2 rounded-full shrink-0 ${
+                    partner.status === 'online' ? 'bg-emerald-400' : 'bg-gray-500'
+                  }`}
+                  title={partner.status === 'online' ? 'Çevrim İçi' : 'Çevrim Dışı'}
+                />
+              )}
               <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-[#FFA000]/15 text-[#FFCA28] border border-[#FFA000]/30 hidden sm:inline-block">
-                Canlı Firestore
+                {isDirect ? 'Özel Sohbet' : 'Canlı Firestore'}
               </span>
             </h2>
-            {channel.description && (
-              <p className="text-[11px] text-gray-400 truncate">{channel.description}</p>
+            {headerSubtitle && (
+              <p className="text-[11px] text-gray-400 truncate">{headerSubtitle}</p>
             )}
           </div>
         </div>

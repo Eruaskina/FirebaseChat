@@ -189,7 +189,9 @@ export async function sendMessage(channelId: string, msg: ChatMessage): Promise<
     const preview = msg.type === 'code' ? `[Kod] ${msg.codeLanguage || 'snippet'}` : msg.text;
     await updateDoc(doc(db, 'channels', channelId), {
       lastMessage: preview.slice(0, 100),
-      lastMessageAt: msg.createdAt
+      lastMessageAt: msg.createdAt,
+      lastSenderId: msg.senderId,
+      lastSenderName: msg.senderName
     }).catch(() => {
       // Ignore if channel doc update fails
     });

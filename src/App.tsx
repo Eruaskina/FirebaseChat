@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { Header } from './components/Header';
 import { Sidebar } from './components/Sidebar';
@@ -7,6 +7,7 @@ import { AuthModal } from './components/AuthModal';
 import { CreateChannelModal } from './components/CreateChannelModal';
 import { CodeSnippetModal } from './components/CodeSnippetModal';
 import { UserProfileModal } from './components/UserProfileModal';
+import { NotificationToast } from './components/NotificationToast';
 import { Channel, UserProfile } from './types/chat';
 import {
   subscribeToChannels,
@@ -16,6 +17,8 @@ import {
 } from './firebase/db';
 import { testConnection } from './firebase/config';
 import { FirebaseLogo } from './components/FirebaseLogo';
+import { InAppNotification, triggerDesktopNotification } from './firebase/notifications';
+import { getDirectChatPartner } from './utils/chatHelpers';
 
 const DEFAULT_ACTIVE_CHANNEL: Channel = {
   id: 'genel',
@@ -32,6 +35,13 @@ function MainChatApp() {
   const [onlineUsers, setOnlineUsers] = useState<UserProfile[]>([]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
+  // In-app toast notification state
+  const [toastNotification, setToastNotification] = useState<InAppNotification | null>(null);
+
+  // Track previous message timestamps per channel to detect new arrivals
+  const lastKnownMessagesRef = useRef<Record<string, string>>({});
+  const initialChannelsLoadedRef = useRef(false);
+
   // Modals
   const [isCreateChannelOpen, setIsCreateChannelOpen] = useState(false);
   const [isCodeModalOpen, setIsCodeModalOpen] = useState(false);
@@ -44,9 +54,55 @@ function MainChatApp() {
 
   // Subscribe to channels & users when logged in
   useEffect(() => {
-    if (!currentUser) return;
+    if (!currentUser || !profile) return;
 
     const unsubChannels = subscribeToChannels((chs) => {
+      // Check for incoming new messages across any channel
+      if (initialChannelsLoadedRef.current) {
+        for (const ch of chs) {
+          const prevTime = lastKnownMessagesRef.current[ch.id];
+          const newTime = ch.lastMessageAt;
+
+          if (
+            newTime &&
+            newTime !== prevTime &&
+            ch.lastSenderId &&
+            ch.lastSenderId !== profile.uid
+          ) {
+            // New message arrived from someone else!
+            const partner = getDirectChatPartner(ch, profile.uid, onlineUsers);
+            const chDisplayName = partner ? `@${partner.displayName}` : `#${ch.name}`;
+            const senderName = ch.lastSenderName || 'Bir kullanıcı';
+            const msgPreview = ch.lastMessage || 'Yeni bir ileti gönderildi';
+
+            // 1. Browser desktop notification + audio chime
+            triggerDesktopNotification(
+              `🔥 ${senderName} (${chDisplayName})`,
+              msgPreview,
+              () => setActiveChannel(ch)
+            );
+
+            // 2. In-app toast banner
+            setToastNotification({
+              id: `notif_${Date.now()}_${Math.random()}`,
+              senderName,
+              channelId: ch.id,
+              channelName: chDisplayName,
+              text: msgPreview,
+              createdAt: newTime
+            });
+          }
+        }
+      }
+
+      // Update timestamps cache
+      chs.forEach((ch) => {
+        if (ch.lastMessageAt) {
+          lastKnownMessagesRef.current[ch.id] = ch.lastMessageAt;
+        }
+      });
+      initialChannelsLoadedRef.current = true;
+
       setChannels(chs);
       // Keep active channel object updated if it exists in list
       setActiveChannel((prev) => {
@@ -63,7 +119,17 @@ function MainChatApp() {
       unsubChannels();
       unsubUsers();
     };
-  }, [currentUser]);
+  }, [currentUser, profile?.uid, onlineUsers.length]);
+
+  // Auto-dismiss in-app toast notification after 6 seconds
+  useEffect(() => {
+    if (toastNotification) {
+      const timer = setTimeout(() => {
+        setToastNotification(null);
+      }, 6000);
+      return () => clearTimeout(timer);
+    }
+  }, [toastNotification]);
 
   // Handle direct message start
   const handleStartDirectMessage = async (targetUser: UserProfile) => {
@@ -153,8 +219,21 @@ function MainChatApp() {
             <ChatArea
               channel={activeChannel}
               onOpenCodeModal={() => setIsCodeModalOpen(true)}
+              onlineUsers={onlineUsers}
             />
           </div>
+
+          {/* In-App Message Toast Notification */}
+          <NotificationToast
+            notification={toastNotification}
+            onClose={() => setToastNotification(null)}
+            onNavigate={(chId) => {
+              const target = channels.find((c) => c.id === chId);
+              if (target) {
+                setActiveChannel(target);
+              }
+            }}
+          />
 
           {/* Modals */}
           <CreateChannelModal

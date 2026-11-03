@@ -11,6 +11,7 @@ import {
   Zap,
   Circle
 } from 'lucide-react';
+import { getDirectChatPartner } from '../utils/chatHelpers';
 
 interface SidebarProps {
   channels: Channel[];
@@ -39,12 +40,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
     (c) => c.type === 'public' && c.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const directChannels = channels.filter(
-    (c) =>
-      c.type === 'direct' &&
-      c.memberIds?.includes(profile?.uid || '') &&
-      c.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const directChannels = channels.filter((c) => {
+    if (c.type !== 'direct' || !c.memberIds?.includes(profile?.uid || '')) {
+      return false;
+    }
+    if (!searchQuery) return true;
+    const partner = getDirectChatPartner(c, profile?.uid, onlineUsers);
+    const q = searchQuery.toLowerCase();
+    return (
+      partner?.displayName.toLowerCase().includes(q) ||
+      partner?.username.toLowerCase().includes(q) ||
+      c.name.toLowerCase().includes(q)
+    );
+  });
 
   const filteredUsers = onlineUsers.filter(
     (u) =>
@@ -166,6 +174,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 ) : (
                   directChannels.map((ch) => {
                     const isActive = ch.id === activeChannelId;
+                    const partner = getDirectChatPartner(ch, profile?.uid, onlineUsers);
+                    const displayName = partner?.displayName || ch.name;
+                    const username = partner ? `@${partner.username}` : '';
+                    const avatarColor = partner?.avatarColor || '#FFA000';
+                    const isOnline = partner?.status === 'online';
+                    const hasUnread = Boolean(
+                      ch.lastSenderId &&
+                      ch.lastSenderId !== profile?.uid &&
+                      ch.id !== activeChannelId
+                    );
+
                     return (
                       <button
                         key={ch.id}
@@ -179,10 +198,31 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             : 'text-gray-300 hover:bg-[#272B2F] hover:text-white'
                         }`}
                       >
-                        <div className="flex items-center gap-2 truncate">
-                          <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" />
-                          <span className="truncate">{ch.name}</span>
+                        <div className="flex items-center gap-2.5 truncate">
+                          <div className="relative shrink-0">
+                            <div
+                              className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold shadow-xs uppercase"
+                              style={{ backgroundColor: avatarColor }}
+                            >
+                              {displayName ? displayName[0] : 'U'}
+                            </div>
+                            <span
+                              className={`absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-[#1E2124] ${
+                                isOnline ? 'bg-emerald-400' : 'bg-gray-500'
+                              }`}
+                            />
+                          </div>
+                          <div className="truncate min-w-0">
+                            <div className="truncate font-medium text-gray-200">{displayName}</div>
+                            {username && (
+                              <div className="text-[10px] text-gray-400 font-mono truncate">{username}</div>
+                            )}
+                          </div>
                         </div>
+
+                        {hasUnread && (
+                          <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0 animate-pulse" title="Yeni mesaj" />
+                        )}
                       </button>
                     );
                   })
